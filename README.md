@@ -1,6 +1,7 @@
 Design :
-To use project 4 and its code make sure it is good 
+Project 4 is done and good.....
 
+Next to do:
 Separate the tasks and the function to finish 
 
 Additionally add something more to the project
