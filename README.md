@@ -4,7 +4,7 @@ Project 4 is done and good.....
 Next to do:
 Separate the tasks and the function to finish 
 
-Additionally add something more to the project
+Additionally add something more to the final project skeleton.
 
 We want to add prolog basic features to the project
 
