@@ -273,7 +273,9 @@ let rec scan : string -> tokenT list =
    then []
    else let c = String.get str 0 
         and str1 = String.sub str 1 (String.length str - 1) in
-   if is_digit c
+  if c = '\n' then
+      scan str1
+   else if is_digit c
    then let (n,str') = scanNum str
          in (NumT n :: (scan str'))
    else if is_upper_case c
@@ -324,7 +326,10 @@ let expectToken : tokenT -> tokenT list -> tokenT list =
    |  [] -> raise (InputEndsButExpected (print_token expected))
    | token1 :: tokens' -> 
        if token1 = expected
-       then tokens'
+       then (
+         print_endline ("Matched token: " ^ print_token token1);
+         tokens'
+       )
        else raise (TokenSeenButExpected (print_token expected, print_token token1))
 
 let getIdT : tokenT list -> string * tokenT list =
@@ -355,7 +360,9 @@ let rec parseType : tokenT list -> typeY * tokenT list =
          let (typ1, tokens2) = parseType tokens1 in
         (match tokens2 with
          | [] -> raise (InputEndsButExpected "'*' or '->'")
-         | (TimesT :: tokens3) -> raise ParserIncomplete
+         | (TimesT :: tokens3) -> 
+            let (typ2, tokens4) = parseType tokens3 in
+            (ProdY (typ1, typ2), expectToken RparenT tokens4)
          | (ArrowT :: tokens3) ->
                let (typ2, tokens4) = parseType tokens3 in
                   (FunY (typ1,typ2), expectToken RparenT tokens4)
@@ -406,24 +413,73 @@ let rec parseExp : tokenT list -> expE * tokenT list =
              let (t, tokens4) = parseType (expectToken ColonT tokens3) in
              let (e, tokens5) = parseExp (expectToken ArrowT tokens4) in
             (FunE (x,t,e), expectToken RparenT tokens5)
-         | IfT :: tokens2 -> raise ParserIncomplete
-         | (FstT :: tokens2) -> raise ParserIncomplete
-         | (SndT :: tokens2) -> raise ParserIncomplete
-         | (ConstructT c :: tokens2) -> raise ParserIncomplete
-         | (MatchT :: tokens2) -> raise ParserIncomplete
-         | _ -> 
-          let (e1, tokens2) = parseExp tokens1 in
-        (match tokens2 with
-         | [] -> raise (InputEndsButExpected "the second operand")
-         | (PlusT :: tokens3) -> raise ParserIncomplete
-         | (MinusT :: tokens3) -> raise ParserIncomplete
-         | (TimesT :: tokens3) -> raise ParserIncomplete
-         | (CommaT :: tokens3) -> raise ParserIncomplete
-         | _ ->
-              let (e2, tokens3) = parseExp tokens2
-               in (ApplyE (e1,e2), expectToken RparenT tokens3)))
-     | token :: _ -> raise (TokenSeenButExpected 
-                       ("the start of an expression", print_token token))
+         | IfT :: tokens2 -> 
+            let (cond1, tokens3) = parseExp tokens2 in
+             (match tokens3 with
+              | EqualT :: tokens4 ->
+                  let (cond2, tokens5) = parseExp tokens4 in
+                  let tokens6 = expectToken ThenT tokens5 in
+                  let (e1, tokens7) = parseExp tokens6 in
+                  let tokens8 = expectToken ElseT tokens7 in
+                  let (e2, tokens9) = parseExp tokens8 in
+                  (IfEqE (cond1, cond2, e1, e2), tokens9)
+              | LessT :: tokens4 -> 
+                  let (cond2, tokens5) = parseExp tokens4 in
+                  let tokens6 = expectToken ThenT tokens5 in
+                  let (e1, tokens7) = parseExp tokens6 in
+                  let tokens8 = expectToken ElseT tokens7 in
+                  let (e2, tokens9) = parseExp tokens8 in
+                  (IfLtE (cond1, cond2, e1, e2), tokens9)
+              | RparenT :: _ -> 
+                  raise (InputEndsButExpected "else")
+              | token :: _ -> raise (TokenSeenButExpected ("'=' or '<'", print_token token))
+              | [] -> raise (InputEndsButExpected "'=' or '<'"))
+         | (FstT :: tokens2) -> 
+              let (e1, tokens3) = parseExp tokens2 in
+              (FstE e1, expectToken RparenT tokens3)
+         | (SndT :: tokens2) -> 
+              let (e1, tokens3) = parseExp tokens2 in
+              (SndE e1, expectToken RparenT tokens3)
+         | (ConstructT c :: tokens2) -> 
+              let (e1, tokens3) = parseExp tokens2 in
+              (ConstructE (c, e1), expectToken RparenT tokens3)
+         | (MatchT :: tokens2) -> 
+             let (e1, tokens3) = parseExp tokens2 in
+             let tokens4 = expectToken WithT tokens3 in
+             let rec parseClauses tokens =
+               match tokens with
+               | VbarT :: tokens1 ->
+                   let (c, tokens2) = getConstructT tokens1 in
+                   let (x, tokens3) = getIdT tokens2 in
+                   let tokens4 = expectToken ArrowT tokens3 in
+                   let (e, tokens5) = parseExp tokens4 in
+                   let (rest, tokens6) = parseClauses tokens5 in
+                   ((c, x, e) :: rest, tokens6)
+               | _ -> ([], tokens)
+             in
+             let (clauses, tokens5) = parseClauses tokens4 in
+             (MatchE (e1, clauses), expectToken RparenT tokens5)
+          | _ -> 
+            let (e1, tokens2) = parseExp tokens1 in
+            (match tokens2 with
+            | [] -> raise (InputEndsButExpected "the second operand")
+            | (PlusT :: tokens3) -> 
+                let (e2, tokens4) = parseExp tokens3 in
+                (PlusE (e1, e2), expectToken RparenT tokens4)
+            | (MinusT :: tokens3) -> 
+                let (e2, tokens4) = parseExp tokens3 in
+                (MinusE (e1, e2), expectToken RparenT tokens4)
+            | (TimesT :: tokens3) -> 
+                let (e2, tokens4) = parseExp tokens3 in
+                (TimesE (e1, e2), expectToken RparenT tokens4)
+            | (CommaT :: tokens3) -> 
+                let (e2, tokens4) = parseExp tokens3 in
+                (PairE (e1, e2), expectToken RparenT tokens4)
+            | _ ->
+                  let (e2, tokens3) = parseExp tokens2
+                  in (ApplyE (e1,e2), expectToken RparenT tokens3)))
+        | token :: _ -> raise (TokenSeenButExpected 
+                          ("the start of an expression", print_token token))
 
 
 and parseClauses : 
@@ -532,15 +588,46 @@ let rec typeE : expE -> constructorEnv -> (typeY environment) -> typeY =
        | FunY(t0,t) -> 
             if t2 = t0 then t else raise FunMismatchType
        | _ -> raise FunNotFunType)
-  | IfEqE(e0L,e0R,e1,e2) -> raise TypeCheckerIncomplete
+  | IfEqE(e0L,e0R,e1,e2) -> 
+        let t0L = typeE e0L cenv tenv in
+        let t0R = typeE e0R cenv tenv in
+        if t0L <> IntY || t0R <> IntY then raise OperandNotIntegerType;
+        let t1 = typeE e1 cenv tenv in
+        let t2 = typeE e2 cenv tenv in
+        if t1 = t2 then t1 else raise BranchesMismatch
 
-  | IfLtE(e0L,e0R,e1,e2) -> raise TypeCheckerIncomplete
-  | PlusE(e1,e2) -> raise TypeCheckerIncomplete
-  | MinusE(e1,e2) -> raise TypeCheckerIncomplete
-  | TimesE(e1,e2) -> raise TypeCheckerIncomplete
-  | PairE(e1,e2) -> raise TypeCheckerIncomplete
-  | FstE(e0) -> raise TypeCheckerIncomplete
-  | SndE(e0) -> raise TypeCheckerIncomplete
+  | IfLtE(e0L,e0R,e1,e2) -> 
+        let t0L = typeE e0L cenv tenv in
+        let t0R = typeE e0R cenv tenv in
+        if t0L <> IntY || t0R <> IntY then raise OperandNotIntegerType;
+        let t1 = typeE e1 cenv tenv in
+        let t2 = typeE e2 cenv tenv in
+        if t1 = t2 then t1 else raise BranchesMismatch
+  | PlusE(e1,e2) -> 
+        let t1 = typeE e1 cenv tenv in
+        let t2 = typeE e2 cenv tenv in
+        if t1 = IntY && t2 = IntY then IntY else raise OperandNotIntegerType
+  | MinusE(e1,e2) -> 
+        let t1 = typeE e1 cenv tenv in
+        let t2 = typeE e2 cenv tenv in
+        if t1 = IntY && t2 = IntY then IntY else raise OperandNotIntegerType
+  | TimesE(e1,e2) -> 
+        let t1 = typeE e1 cenv tenv in
+        let t2 = typeE e2 cenv tenv in
+        if t1 = IntY && t2 = IntY then IntY else raise OperandNotIntegerType
+        
+  | PairE(e1,e2) -> 
+        let t1 = typeE e1 cenv tenv in
+        let t2 = typeE e2 cenv tenv in
+        ProdY (t1, t2)
+  | FstE(e0) -> 
+        (match typeE e0 cenv tenv with
+         | ProdY (t1, _) -> t1
+         | _ -> raise FstNotPairType)
+  | SndE(e0) -> 
+        (match typeE e0 cenv tenv with
+         | ProdY (_, t2) -> t2
+         | _ -> raise SndNotPairType)
   | ConstructE(c,e0) -> 
       let (tid, t_expected) = retrieveEnv cenv c in
         let t_actual = typeE e0 cenv tenv in
@@ -636,14 +723,36 @@ let rec evalE : expE -> (value environment) -> value =
                  (insertEnv f (FixV (f,x,exp0,env0)) 
                     (insertEnv x v2 env0))
          | _ -> raise ApplyNotClosure)
-   | IfEqE(e0L,e0R,e1,e2) -> raise InterpreterIncomplete
-   | IfLtE(e0L,e0R,e1,e2) -> raise InterpreterIncomplete
-   | PlusE(e1,e2) -> raise InterpreterIncomplete
-   | MinusE(e1,e2) -> raise InterpreterIncomplete
-   | TimesE(e1,e2) -> raise InterpreterIncomplete
-   | PairE(e1,e2) -> raise InterpreterIncomplete
-   | FstE(e0) -> raise InterpreterIncomplete
-   | SndE(e0) -> raise InterpreterIncomplete
+   | IfEqE(e0L,e0R,e1,e2) -> 
+      (match (evalE e0L env, evalE e0R env) with
+        | (NumV v0L, NumV v0R) -> if v0L = v0R then evalE e1 env else evalE e2 env
+        | _ -> raise OperandNotInteger)
+   | IfLtE(e0L,e0R,e1,e2) -> 
+      (match (evalE e0L env, evalE e0R env) with
+        | (NumV v0L, NumV v0R) -> if v0L < v0R then evalE e1 env else evalE e2 env
+        | _ -> raise OperandNotInteger)
+   | PlusE(e1,e2) -> 
+      (match (evalE e1 env, evalE e2 env) with
+        | (NumV v1, NumV v2) -> NumV (v1 + v2)
+        | _ -> raise OperandNotInteger)
+   | MinusE(e1,e2) -> 
+      (match (evalE e1 env, evalE e2 env) with
+        | (NumV v1, NumV v2) -> NumV (v1 - v2)
+        | _ -> raise OperandNotInteger)
+   | TimesE(e1,e2) -> 
+      (match (evalE e1 env, evalE e2 env) with
+        | (NumV v1, NumV v2) -> NumV (v1 * v2)
+        | _ -> raise OperandNotInteger)
+   | PairE(e1,e2) -> 
+      PairV (evalE e1 env, evalE e2 env)
+   | FstE(e0) -> 
+      (match evalE e0 env with
+        | PairV (v1, _) -> v1
+        | _ -> raise FstNotPair)
+   | SndE(e0) -> 
+      (match evalE e0 env with
+        | PairV (_, v2) -> v2
+        | _ -> raise SndNotPair)
    | ConstructE(c,e0) ->
       let v0 = evalE e0 env in
           ConstructV (c, v0)

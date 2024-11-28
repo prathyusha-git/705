@@ -17,3 +17,28 @@ We can use the test cases from project5 to evaluate the logical programming para
 Timeline
 
 Future Work: To create a hybrid language which combines the imperative, the functional and logic programming paradigm.
+
+
+Passed Test cases:
+testBinOp
+testLet
+testPairs
+testTree
+testRecTree1
+testRecTree2
+
+Unpassed Test cases:
+testCond
+error info: string = "saw ')' but had expected 'else'\n"
+
+testLetFun
+error info: string = "saw ')' but had expected '='\n"
+
+testFun
+error info: string = "saw ')' but had expected '='\n" 
+
+testRecNat
+error info: string = "saw ')' but had expected ':'\n"
+
+
+Issue: The problem of nested right parentheses
