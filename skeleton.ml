@@ -273,9 +273,7 @@ let rec scan : string -> tokenT list =
    then []
    else let c = String.get str 0 
         and str1 = String.sub str 1 (String.length str - 1) in
-  if c = '\n' then
-      scan str1
-   else if is_digit c
+   if is_digit c
    then let (n,str') = scanNum str
          in (NumT n :: (scan str'))
    else if is_upper_case c
@@ -299,42 +297,20 @@ let rec scan : string -> tokenT list =
        else if s = "rec" then RecT
        else if s = "in" then InT
        else IdT s
-     in print_endline ("Scanned identifier/keyword token: " ^ s);
-        token :: scan str'
+     in (token :: scan str')
    else match c with
-     | '+' -> 
-        print_endline "Scanned '+' token";
-        PlusT :: (scan str1)
-     | '*' -> 
-        print_endline "Scanned '*' token";
-        TimesT :: (scan str1)
-     | '=' -> 
-        print_endline "Scanned '=' token";
-        EqualT :: (scan str1)
-     | '<' -> 
-        print_endline "Scanned '<' token";
-        LessT :: (scan str1)
-     | '(' -> 
-        print_endline "Scanned '(' token";
-        LparenT :: (scan str1)
-     | ')' -> 
-        print_endline "Scanned ')' token";
-        RparenT :: (scan str1)
-     | '|' -> 
-        print_endline "Scanned '|' token";
-        VbarT :: (scan str1)
-     | ':' -> 
-        print_endline "Scanned ':' token";
-        ColonT :: (scan str1)
-     | ',' -> 
-        print_endline "Scanned ',' token";
-        CommaT :: (scan str1)
-     | '-' -> 
-        if is_next str1 '>' then (
-          print_endline "Scanned '->' token";
-          ArrowT :: scan (String.sub str1 1 (String.length str1 - 1))) 
-          else (print_endline "Scanned '-' token";
-          MinusT :: scan str1)
+     | '+' -> PlusT :: (scan str1)
+     | '*' -> TimesT :: (scan str1)
+     | '=' -> EqualT :: (scan str1)
+     | '<' -> LessT :: (scan str1)
+     | '(' -> LparenT :: (scan str1)
+     | ')' -> RparenT :: (scan str1)
+     | '|' -> VbarT :: (scan str1)
+     | ':' -> ColonT :: (scan str1)
+     | ',' -> CommaT :: (scan str1)
+     | '-' -> if is_next str1 '>'
+              then ArrowT :: (scan (String.sub str1 1 (String.length str1 - 1)))
+              else MinusT :: (scan str1)
      | ';' -> if is_next str1 ';'
               then SemisT :: (scan (String.sub str1 1 (String.length str1 - 1)))
               else scan str1
@@ -348,10 +324,7 @@ let expectToken : tokenT -> tokenT list -> tokenT list =
    |  [] -> raise (InputEndsButExpected (print_token expected))
    | token1 :: tokens' -> 
        if token1 = expected
-       then (
-         print_endline ("Matched token: " ^ print_token token1);
-         tokens'
-       )
+       then tokens'
        else raise (TokenSeenButExpected (print_token expected, print_token token1))
 
 let getIdT : tokenT list -> string * tokenT list =
@@ -382,9 +355,7 @@ let rec parseType : tokenT list -> typeY * tokenT list =
          let (typ1, tokens2) = parseType tokens1 in
         (match tokens2 with
          | [] -> raise (InputEndsButExpected "'*' or '->'")
-         | (TimesT :: tokens3) -> 
-            let (typ2, tokens4) = parseType tokens3 in
-            (ProdY (typ1, typ2), expectToken RparenT tokens4)
+         | (TimesT :: tokens3) -> raise ParserIncomplete
          | (ArrowT :: tokens3) ->
                let (typ2, tokens4) = parseType tokens3 in
                   (FunY (typ1,typ2), expectToken RparenT tokens4)
@@ -421,120 +392,38 @@ let rec parseDecls : tokenT list -> declareD list * tokenT list =
      | _ -> ([], tokens)
 
 let rec parseExp : tokenT list -> expE * tokenT list =
-  fun tokens ->
+   fun tokens ->
     match tokens with
     | [] -> raise (InputEndsButExpected "an expression")
     | (NumT z) :: tokens1 ->
-         print_endline ("Parsed token: " ^ print_token (NumT z));
          (NumE z, tokens1)
     | (IdT s) :: tokens1 ->
-         print_endline ("Parsed token: " ^ print_token (IdT s));
          (IdE s, tokens1)
     | LparenT :: tokens1 ->
-         print_endline ("Parsed token: " ^ print_token LparenT);
          (match tokens1 with
           | FunT :: tokens2 ->
-              print_endline ("Parsed token: " ^ print_token FunT);
-              let (x, tokens3) = getIdT tokens2 in
-              print_endline ("Parsed identifier: " ^ x);
-              let (t, tokens4) = parseType (expectToken ColonT tokens3) in
-              print_endline ("Parsed type: " ^ print_type t);
-              let (e, tokens5) = parseExp (expectToken ArrowT tokens4) in
-              let tokens6 = expectToken RparenT tokens5 in
-              (FunE (x, t, e), tokens6)
-          | IfT :: tokens2 ->
-              print_endline ("Parsed token: " ^ print_token IfT);
-              let (cond1, tokens3) = parseExp tokens2 in
-              print_endline "Parsed condition of if";
-              (match tokens3 with
-               | EqualT :: tokens4 ->
-                   print_endline ("Parsed token: " ^ print_token EqualT);
-                   let (cond2, tokens5) = parseExp tokens4 in
-                   let tokens6 = expectToken ThenT tokens5 in
-                   let (e1, tokens7) = parseExp tokens6 in
-                   let tokens8 = expectToken ElseT tokens7 in
-                   let (e2, tokens9) = parseExp tokens8 in
-                   let tokens10 = expectToken RparenT tokens9 in
-                   print_endline "Parsed if-then-else block";
-                   (IfEqE (cond1, cond2, e1, e2), tokens10)
-               | LessT :: tokens4 ->
-                   print_endline ("Parsed token: " ^ print_token LessT);
-                   let (cond2, tokens5) = parseExp tokens4 in
-                   let tokens6 = expectToken ThenT tokens5 in
-                   let (e1, tokens7) = parseExp tokens6 in
-                   let tokens8 = expectToken ElseT tokens7 in
-                   let (e2, tokens9) = parseExp tokens8 in
-                   let tokens10 = expectToken RparenT tokens9 in
-                   print_endline "Parsed if-then-else block";
-                   (IfLtE (cond1, cond2, e1, e2), tokens10)
-               | RparenT :: _ -> raise (InputEndsButExpected "else")
-               | token :: _ -> raise (TokenSeenButExpected ("'=' or '<'", print_token token))
-               | [] -> raise (InputEndsButExpected "'=' or '<'"))
-          | FstT :: tokens2 ->
-              print_endline ("Parsed token: " ^ print_token FstT);
-              let (e1, tokens3) = parseExp tokens2 in
-              let tokens4 = expectToken RparenT tokens3 in
-              (FstE e1, tokens4)
-          | SndT :: tokens2 ->
-              print_endline ("Parsed token: " ^ print_token SndT);
-              let (e1, tokens3) = parseExp tokens2 in
-              let tokens4 = expectToken RparenT tokens3 in
-              (SndE e1, tokens4)
-          | ConstructT c :: tokens2 ->
-              print_endline ("Parsed constructor: " ^ c);
-              let (e1, tokens3) = parseExp tokens2 in
-              let tokens4 = expectToken RparenT tokens3 in
-              (ConstructE (c, e1), tokens4)
-          | MatchT :: tokens2 ->
-              print_endline ("Parsed token: " ^ print_token MatchT);
-              let (e1, tokens3) = parseExp tokens2 in
-              let tokens4 = expectToken WithT tokens3 in
-              let rec parseClauses tokens =
-                match tokens with
-                | VbarT :: tokens1 ->
-                    print_endline ("Parsed token: " ^ print_token VbarT);
-                    let (c, tokens2) = getConstructT tokens1 in
-                    let (x, tokens3) = getIdT tokens2 in
-                    let tokens4 = expectToken ArrowT tokens3 in
-                    let (e, tokens5) = parseExp tokens4 in
-                    let (rest, tokens6) = parseClauses tokens5 in
-                    print_endline ("Parsed clause for constructor: " ^ c);
-                    ((c, x, e) :: rest, tokens6)
-                | _ -> ([], tokens)
-              in
-              let (clauses, tokens5) = parseClauses tokens4 in
-              let tokens6 = expectToken RparenT tokens5 in
-              (MatchE (e1, clauses), tokens6)
-          | _ ->
-              let (e1, tokens2) = parseExp tokens1 in
-              print_endline "Parsed expression inside parentheses";
-              (match tokens2 with
-               | PlusT :: tokens3 ->
-                   print_endline ("Parsed token: " ^ print_token PlusT);
-                   let (e2, tokens4) = parseExp tokens3 in
-                   let tokens5 = expectToken RparenT tokens4 in
-                   (PlusE (e1, e2), tokens5)
-               | MinusT :: tokens3 ->
-                   print_endline ("Parsed token: " ^ print_token MinusT);
-                   let (e2, tokens4) = parseExp tokens3 in
-                   let tokens5 = expectToken RparenT tokens4 in
-                   (MinusE (e1, e2), tokens5)
-               | TimesT :: tokens3 ->
-                   print_endline ("Parsed token: " ^ print_token TimesT);
-                   let (e2, tokens4) = parseExp tokens3 in
-                   let tokens5 = expectToken RparenT tokens4 in
-                   (TimesE (e1, e2), tokens5)
-               | CommaT :: tokens3 ->
-                   print_endline ("Parsed token: " ^ print_token CommaT);
-                   let (e2, tokens4) = parseExp tokens3 in
-                   let tokens5 = expectToken RparenT tokens4 in
-                   (PairE (e1, e2), tokens5)
-               | _ ->
-                   let (e2, tokens3) = parseExp tokens2 in
-                   let tokens4 = expectToken RparenT tokens3 in
-                   (ApplyE (e1, e2), tokens4)))
-    | token :: _ -> raise (TokenSeenButExpected ("the start of an expression", print_token token))
-
+             let (x, tokens3) = getIdT tokens2 in
+             let (t, tokens4) = parseType (expectToken ColonT tokens3) in
+             let (e, tokens5) = parseExp (expectToken ArrowT tokens4) in
+            (FunE (x,t,e), expectToken RparenT tokens5)
+         | IfT :: tokens2 -> raise ParserIncomplete
+         | (FstT :: tokens2) -> raise ParserIncomplete
+         | (SndT :: tokens2) -> raise ParserIncomplete
+         | (ConstructT c :: tokens2) -> raise ParserIncomplete
+         | (MatchT :: tokens2) -> raise ParserIncomplete
+         | _ -> 
+          let (e1, tokens2) = parseExp tokens1 in
+        (match tokens2 with
+         | [] -> raise (InputEndsButExpected "the second operand")
+         | (PlusT :: tokens3) -> raise ParserIncomplete
+         | (MinusT :: tokens3) -> raise ParserIncomplete
+         | (TimesT :: tokens3) -> raise ParserIncomplete
+         | (CommaT :: tokens3) -> raise ParserIncomplete
+         | _ ->
+              let (e2, tokens3) = parseExp tokens2
+               in (ApplyE (e1,e2), expectToken RparenT tokens3)))
+     | token :: _ -> raise (TokenSeenButExpected 
+                       ("the start of an expression", print_token token))
 
 
 and parseClauses : 
@@ -542,13 +431,7 @@ and parseClauses :
    fun tokens ->
     match tokens with
     | [] -> ([], tokens)
-    | (VbarT :: tokens1) -> 
-        let (c, tokens2) = getConstructT tokens1 in  
-        let (x, tokens3) = getIdT tokens2 in 
-        let tokens4 = expectToken ArrowT tokens3 in  
-        let (e, tokens5) = parseExp tokens4 in 
-        let (rest, tokens6) = parseClauses tokens5 in  
-        ((c, x, e) :: rest, tokens6)
+    | (VbarT :: tokens1) -> raise ParserIncomplete
     | _ -> ([], tokens)
 
 let rec parseBinding : tokenT list -> letL * tokenT list =
@@ -557,18 +440,9 @@ let rec parseBinding : tokenT list -> letL * tokenT list =
     match tokens with
     | [] -> raise (InputEndsButExpected "a binding")
     | (IdT x) :: EqualT :: tokens1 -> 
-           let (e, tokens2) = parseExp tokens1 in
-            (match tokens2 with
-            | ColonT :: tokens3 ->  
-                let (t, tokens4) = parseType tokens3 in
-                (LetVarL (x, e), tokens4)
-            | _ -> (LetVarL (x, e), tokens2))
+           raise ParserIncomplete
     | (IdT f) :: LparenT :: (IdT x) :: ColonT :: tokens1 ->
-          let (t, tokens2) = parseType tokens1 in
-          let tokens3 = expectToken RparenT tokens2 in
-          let tokens4 = expectToken EqualT tokens3 in
-          let (e, tokens5) = parseExp tokens4 in
-          (LetFunL (f, x, t, e), tokens5)
+           raise ParserIncomplete
     | RecT :: (IdT f) :: LparenT :: (IdT x) :: ColonT :: tokens1 ->
          let (t1, tokens2) = parseType tokens1 in
          let (e, tokens3) = parseExp 
@@ -583,10 +457,7 @@ let rec parseBindings : tokenT list -> letL list * tokenT list =
    fun tokens ->
      match tokens with
      | [] -> ([], tokens)
-     | (LetT :: tokens1) -> 
-        let (binding, tokens2) = parseBinding tokens1 in
-        let (bindings, tokens3) = parseBindings (expectToken SemisT tokens2) in
-        (binding :: bindings, tokens3)
+     | (LetT :: tokens1) -> raise ParserIncomplete
      | _ -> ([], tokens)
 
 let parseProg : tokenT list -> progP * tokenT list =
@@ -632,7 +503,7 @@ let updateCEnv : declareD -> constructorEnv -> constructorEnv =
  
 let updatesCEnv : declareD list -> constructorEnv -> constructorEnv =
    fun decls -> fun cenv0 ->
-     List.fold_left (fun cenv decl -> updateCEnv decl cenv) cenv0 decls
+     raise TypeCheckerIncomplete
 
 let rec typeE : expE -> constructorEnv -> (typeY environment) -> typeY =
    fun exp cenv tenv -> 
@@ -642,95 +513,33 @@ let rec typeE : expE -> constructorEnv -> (typeY environment) -> typeY =
    | FunE (x, tx, e) ->
         let t = typeE e cenv (insertEnv x tx tenv) in
        FunY(tx, t)
-   | ApplyE (e1, e2) -> 
+   | ApplyE(e1, e2) -> 
         let t1 = typeE e1 cenv tenv in
         let t2 = typeE e2 cenv tenv in
       (match t1 with
        | FunY(t0,t) -> 
             if t2 = t0 then t else raise FunMismatchType
        | _ -> raise FunNotFunType)
-  | IfEqE(e0L,e0R,e1,e2) -> 
-        let t0L = typeE e0L cenv tenv in
-        let t0R = typeE e0R cenv tenv in
-        if t0L <> IntY || t0R <> IntY then raise OperandNotIntegerType;
-        let t1 = typeE e1 cenv tenv in
-        let t2 = typeE e2 cenv tenv in
-        if t1 = t2 then t1 else raise BranchesMismatch
-
-  | IfLtE(e0L,e0R,e1,e2) -> 
-        let t0L = typeE e0L cenv tenv in
-        let t0R = typeE e0R cenv tenv in
-        if t0L <> IntY || t0R <> IntY then raise OperandNotIntegerType;
-        let t1 = typeE e1 cenv tenv in
-        let t2 = typeE e2 cenv tenv in
-        if t1 = t2 then t1 else raise BranchesMismatch
-  | PlusE(e1,e2) -> 
-        let t1 = typeE e1 cenv tenv in
-        let t2 = typeE e2 cenv tenv in
-        if t1 = IntY && t2 = IntY then IntY else raise OperandNotIntegerType
-  | MinusE(e1,e2) -> 
-        let t1 = typeE e1 cenv tenv in
-        let t2 = typeE e2 cenv tenv in
-        if t1 = IntY && t2 = IntY then IntY else raise OperandNotIntegerType
-  | TimesE(e1,e2) -> 
-        let t1 = typeE e1 cenv tenv in
-        let t2 = typeE e2 cenv tenv in
-        if t1 = IntY && t2 = IntY then IntY else raise OperandNotIntegerType
-        
-  | PairE(e1,e2) -> 
-        let t1 = typeE e1 cenv tenv in
-        let t2 = typeE e2 cenv tenv in
-        ProdY (t1, t2)
-  | FstE(e0) -> 
-        (match typeE e0 cenv tenv with
-         | ProdY (t1, _) -> t1
-         | _ -> raise FstNotPairType)
-  | SndE(e0) -> 
-        (match typeE e0 cenv tenv with
-         | ProdY (_, t2) -> t2
-         | _ -> raise SndNotPairType)
-  | ConstructE(c,e0) -> 
-      let (tid, t_expected) = retrieveEnv cenv c in
-        let t_actual = typeE e0 cenv tenv in
-        if t_actual = t_expected then DeclaredY tid
-        else raise ConstructorMismatch
-  | MatchE(e,clauses) ->
-      let t_e = typeE e cenv tenv in
-        (match t_e with
-         | DeclaredY tid ->
-              let rec check_clauses clauses =
-                match clauses with
-                | [] -> raise MatchNoClauses
-                | (c, x, e1) :: rest ->
-                     let (tid', t_arg) = retrieveEnv cenv c in
-                     if tid <> tid' then raise ClauseNotMatch;
-                     let t_body = typeE e1 cenv (insertEnv x t_arg tenv) in
-                     match rest with
-                     | [] -> t_body
-                     | _ ->
-                          let t_rest = check_clauses rest in
-                          if t_body = t_rest then t_body
-                          else raise ClausesMismatch
-              in check_clauses clauses
-         | _ -> raise MatchWithNotSumType)
+  | IfEqE(e0L,e0R,e1,e2) -> raise TypeCheckerIncomplete
+  | IfLtE(e0L,e0R,e1,e2) -> raise TypeCheckerIncomplete
+  | PlusE(e1,e2) -> raise TypeCheckerIncomplete
+  | MinusE(e1,e2) -> raise TypeCheckerIncomplete
+  | TimesE(e1,e2) -> raise TypeCheckerIncomplete
+  | PairE(e1,e2) -> raise TypeCheckerIncomplete
+  | FstE(e0) -> raise TypeCheckerIncomplete
+  | SndE(e0) -> raise TypeCheckerIncomplete
+  | ConstructE(c,e0) -> raise TypeCheckerIncomplete
+  | MatchE(e,clauses) -> raise TypeCheckerIncomplete
 
 let typeL : 
    letL -> constructorEnv -> (typeY environment) -> (typeY environment) =
   fun binding cenv tenv ->
     match binding with
-    | LetVarL(x,e) -> 
-        let t = typeE e cenv tenv in
-        insertEnv x t tenv
+    | LetVarL(x,e) -> raise TypeCheckerIncomplete
     | LetFunL(f,x,tx,e) ->
         let t1 = typeE e cenv (insertEnv x tx tenv) in
            insertEnv f (FunY (tx, t1)) tenv 
-    | LetRecL(f,x,tx,e,t) -> 
-        let rec_tenv = insertEnv f (FunY(tx, t)) (insertEnv x tx tenv) in
-        let t_body = typeE e cenv rec_tenv in
-        if t_body = t then
-          insertEnv f (FunY(tx, t)) tenv
-        else
-          raise RecConflictType
+    | LetRecL(f,x,tx,e,t) -> raise TypeCheckerIncomplete
 
 let typeLs :
    letL list -> constructorEnv -> (typeY environment) -> (typeY environment) =
@@ -776,73 +585,32 @@ let rec evalE : expE -> (value environment) -> value =
    | IdE x -> retrieveEnv env x
    | FunE (x, tx, exp0) -> ClosureV (x, exp0, env)
    | ApplyE(exp1, exp2) -> 
-      (match (evalE exp1 env, evalE exp2 env) with
-        | (ClosureV(x,exp0,env0), v2) ->
-        evalE exp0 (insertEnv x v2 env0)
-        | (FixV(f,x,exp0,env0), v2) ->
-        evalE exp0
-        (insertEnv f (FixV (f,x,exp0,env0))
-        (insertEnv x v2 env0))
-        | _ -> raise ApplyNotClosure)
-   | IfEqE(e0L,e0R,e1,e2) -> 
-      (match (evalE e0L env, evalE e0R env) with
-        | (NumV v0L, NumV v0R) -> if v0L = v0R then evalE e1 env else evalE e2 env
-        | _ -> raise OperandNotInteger)
-   | IfLtE(e0L,e0R,e1,e2) -> 
-      (match (evalE e0L env, evalE e0R env) with
-        | (NumV v0L, NumV v0R) -> if v0L < v0R then evalE e1 env else evalE e2 env
-        | _ -> raise OperandNotInteger)
-   | PlusE(e1,e2) -> 
-      (match (evalE e1 env, evalE e2 env) with
-        | (NumV v1, NumV v2) -> NumV (v1 + v2)
-        | _ -> raise OperandNotInteger)
-   | MinusE(e1,e2) -> 
-      (match (evalE e1 env, evalE e2 env) with
-        | (NumV v1, NumV v2) -> NumV (v1 - v2)
-        | _ -> raise OperandNotInteger)
-   | TimesE(e1,e2) -> 
-      (match (evalE e1 env, evalE e2 env) with
-        | (NumV v1, NumV v2) -> NumV (v1 * v2)
-        | _ -> raise OperandNotInteger)
-   | PairE(e1,e2) -> 
-      PairV (evalE e1 env, evalE e2 env)
-   | FstE(e0) -> 
-      (match evalE e0 env with
-        | PairV (v1, _) -> v1
-        | _ -> raise FstNotPair)
-   | SndE(e0) -> 
-      (match evalE e0 env with
-        | PairV (_, v2) -> v2
-        | _ -> raise SndNotPair)
-   | ConstructE(c,e0) ->
-      let v0 = evalE e0 env in
-          ConstructV (c, v0)
-   | MatchE(e0,clauses) -> 
-      let v0 = evalE e0 env in
-          (match v0 with
-              | ConstructV (c,v) ->
-                  let rec find_match clauses = 
-                      match clauses with
-                      | [] -> raise MatchNotFound
-                      | (c', x, e1) :: rest ->
-                          if c = c' then evalE e1 (insertEnv x v env)
-                          else find_match rest
-                      in find_match clauses
-              | _ -> raise MatchWithNotConstructor)
+       (match (evalE exp1 env, evalE exp2 env) with
+         | (ClosureV(x,exp0,env0), v2) ->
+               evalE exp0 (insertEnv x v2 env0)
+         | (FixV(f,x,exp0,env0), v2) ->
+               evalE exp0
+                 (insertEnv f (FixV (f,x,exp0,env0)) 
+                    (insertEnv x v2 env0))
+         | _ -> raise ApplyNotClosure)
+   | IfEqE(e0L,e0R,e1,e2) -> raise InterpreterIncomplete
+   | IfLtE(e0L,e0R,e1,e2) -> raise InterpreterIncomplete
+   | PlusE(e1,e2) -> raise InterpreterIncomplete
+   | MinusE(e1,e2) -> raise InterpreterIncomplete
+   | TimesE(e1,e2) -> raise InterpreterIncomplete
+   | PairE(e1,e2) -> raise InterpreterIncomplete
+   | FstE(e0) -> raise InterpreterIncomplete
+   | SndE(e0) -> raise InterpreterIncomplete
+   | ConstructE(c,e0) -> raise InterpreterIncomplete
+   | MatchE(e0,clauses) -> raise InterpreterIncomplete
 
 let rec eval_binding : letL -> value environment -> value environment =
    fun binding env ->
     match binding with
     | LetVarL(x,e) ->
          insertEnv x (evalE e env) env
-    | LetFunL(f,x,tx,e) -> 
-        (*Simple Let*)
-        let closure = ClosureV(x, e, env) in
-        insertEnv f closure env
-    | LetRecL(f,x,tx,e,t) -> 
-        (*Recursive Let*)
-        let rec_closure = FixV(f, x, e, env) in
-        insertEnv f rec_closure env
+    | LetFunL(f,x,tx,e) -> raise InterpreterIncomplete
+    | LetRecL(f,x,tx,e,t) -> raise InterpreterIncomplete
 
 let rec eval_bindings : letL list -> value environment -> value environment =
   fun bindings env ->
