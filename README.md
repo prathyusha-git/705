@@ -30,74 +30,10 @@ testTree
 testRecTree1
 testRecTree2
 
-Unpassed Test cases:
-
 testRecNat
-Scanned identifier/keyword token: let
-Scanned identifier/keyword token: rec
-Scanned identifier/keyword token: fac
-Scanned '(' token
-Scanned identifier/keyword token: n
-Scanned ':' token
-Scanned identifier/keyword token: int
-Scanned ')' token
-Scanned '=' token
-Scanned '(' token
-Scanned '(' token
-Scanned identifier/keyword token: if
-Scanned '<' token
-Scanned identifier/keyword token: n
-Scanned identifier/keyword token: then
-Scanned '(' token
-Scanned identifier/keyword token: n
-Scanned '*' token
-Scanned '(' token
-Scanned identifier/keyword token: fac
-Scanned '(' token
-Scanned identifier/keyword token: n
-Scanned '-' token
-Scanned ')' token
-Scanned ')' token
-Scanned ')' token
-Scanned identifier/keyword token: else
-Scanned ')' token
-Scanned ':' token
-Scanned identifier/keyword token: int
-Scanned ')' token
-Scanned '(' token
-Scanned identifier/keyword token: fac
-Scanned ')' token
-Matched token: )
-Matched token: =
-Parsed token: (
-Parsed token: (
-Parsed token: if
-Parsed token: number
-Parsed condition of if
-Parsed token: <
-Parsed token: identifier n
-Matched token: then
-Parsed token: (
-Parsed token: identifier n
-Parsed expression inside parentheses
-Parsed token: *
-Parsed token: (
-Parsed token: identifier fac
-Parsed expression inside parentheses
-Parsed token: (
-Parsed token: identifier n
-Parsed expression inside parentheses
-Parsed token: -
-Parsed token: number
-Matched token: )
-Matched token: )
-Matched token: )
-Matched token: else
-Parsed token: number
-Matched token: )
-Parsed if-then-else block
-Parsed expression inside parentheses
-- : string = "saw ':' but had expected 'the start of an expression'\n"
+
+Unpassed Test cases:
+None.
 
 
-Issue: The problem of nested right parentheses
+
