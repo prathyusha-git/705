@@ -1,7 +1,5 @@
 let testBinOp = 
    "((7 - 4) * (9 - 1))"
-let testBinOp = 
-   "(7 * (9 - 1))"
 (*
 # run testBinOp ;;
 Type is: int
