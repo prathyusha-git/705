@@ -1,0 +1,192 @@
+Last login: Fri Dec  6 16:51:27 on ttys000
+(base) keadriadong@jardine-wireless-2-217 705 % ocaml
+OCaml version 5.2.0
+Enter #help;; for help.
+
+# #use "final.ml";;
+exception InputEndsButExpected of string
+exception TokenSeenButExpected of string * string
+exception ExtraInput
+exception ParserIncomplete
+exception NotDeclared of string
+exception OperandNotIntegerType
+exception FunNotFunType
+exception FunMismatchType
+exception BranchesMismatch
+exception FstNotPairType
+exception SndNotPairType
+exception ConstructorMismatch
+exception MatchWithNotSumType
+exception MatchNoClauses
+exception ClauseNotMatch
+exception ClausesMismatch
+exception RecConflictType
+exception TypeCheckerIncomplete
+exception OperandNotInteger
+exception ApplyNotClosure
+exception FstNotPair
+exception SndNotPair
+exception MatchWithNotConstructor
+exception MatchNotFound
+exception OutputClosure
+exception InterpreterIncomplete
+type identifier = string
+type constructor = string
+type typeY =
+    IntY
+  | DeclaredY of identifier
+  | ProdY of typeY * typeY
+  | FunY of typeY * typeY
+val print_type : typeY -> string = <fun>
+type declareD = identifier * (constructor * typeY) list
+type expE =
+    NumE of int
+  | IdE of identifier
+  | FunE of identifier * typeY * expE
+  | ApplyE of expE * expE
+  | IfEqE of expE * expE * expE * expE
+  | IfLtE of expE * expE * expE * expE
+  | PlusE of expE * expE
+  | MinusE of expE * expE
+  | TimesE of expE * expE
+  | PairE of expE * expE
+  | FstE of expE
+  | SndE of expE
+  | ConstructE of constructor * expE
+  | MatchE of expE * clauseC list
+and clauseC = constructor * identifier * expE
+type letL =
+    LetVarL of identifier * expE
+  | LetFunL of identifier * identifier * typeY * expE
+  | LetRecL of identifier * identifier * typeY * expE * typeY
+type progP = declareD list * letL list * expE
+type tokenT =
+    PlusT
+  | MinusT
+  | TimesT
+  | EqualT
+  | LessT
+  | LparenT
+  | RparenT
+  | VbarT
+  | ArrowT
+  | IntT
+  | TypeT
+  | OfT
+  | FunT
+  | ColonT
+  | IfT
+  | ThenT
+  | ElseT
+  | CommaT
+  | FstT
+  | SndT
+  | MatchT
+  | WithT
+  | LetT
+  | RecT
+  | InT
+  | SemisT
+  | ConstructT of constructor
+  | IdT of identifier
+  | NumT of int
+val print_token : tokenT -> string = <fun>
+val is_digit : char -> bool = <fun>
+val char2digit : char -> int = <fun>
+val is_lower_case : char -> bool = <fun>
+val is_upper_case : char -> bool = <fun>
+val is_letter : char -> bool = <fun>
+val is_next : string -> char -> bool = <fun>
+val scanNum : string -> int * string = <fun>
+val scanName : string -> string * string = <fun>
+val scan : string -> tokenT list = <fun>
+val expectToken : tokenT -> tokenT list -> tokenT list = <fun>
+val getIdT : tokenT list -> string * tokenT list = <fun>
+val getConstructT : tokenT list -> string * tokenT list = <fun>
+val parseType : tokenT list -> typeY * tokenT list = <fun>
+val parseConstructors :
+  tokenT list -> (constructor * typeY) list * tokenT list = <fun>
+val parseDecl : tokenT list -> declareD * tokenT list = <fun>
+val parseDecls : tokenT list -> declareD list * tokenT list = <fun>
+val parseExp : tokenT list -> expE * tokenT list = <fun>
+val parseClauses : tokenT list -> clauseC list * tokenT list = <fun>
+val parseBinding : tokenT list -> letL * tokenT list = <fun>
+val parseBindings : tokenT list -> letL list * tokenT list = <fun>
+val parseProg : tokenT list -> progP * tokenT list = <fun>
+val parse : string -> progP = <fun>
+type 'a environment = string -> 'a
+val initEnv : 'a environment = <fun>
+val insertEnv : string -> 'a -> 'a environment -> 'a environment = <fun>
+val retrieveEnv : 'a environment -> string -> 'a = <fun>
+type constructorEnv = (identifier * typeY) environment
+val updateCEnv : declareD -> constructorEnv -> constructorEnv = <fun>
+val updatesCEnv : declareD list -> constructorEnv -> constructorEnv = <fun>
+val typeE : expE -> constructorEnv -> typeY environment -> typeY = <fun>
+val typeL : letL -> constructorEnv -> typeY environment -> typeY environment =
+  <fun>
+val typeLs :
+  letL list -> constructorEnv -> typeY environment -> typeY environment =
+  <fun>
+val typeP : progP -> typeY = <fun>
+type value =
+    NumV of int
+  | PairV of value * value
+  | ConstructV of constructor * value
+  | ClosureV of identifier * expE * value environment
+  | FixV of identifier * identifier * expE * value environment
+val print_value : value -> string = <fun>
+val evalE : expE -> value environment -> value = <fun>
+val eval_binding : letL -> value environment -> value environment = <fun>
+val eval_bindings : letL list -> value environment -> value environment =
+  <fun>
+val evalP : progP -> value = <fun>
+val run : string -> string = <fun>
+# #use "examples.ml";;
+val testBinOp : string = "((7 - 4) * (9 - 1))"
+val testCond : string =
+  "(if 2 < 3 \n     then (if 5 < 4 \n           then 1 \n           else (if 9 = 8 \n                 then 2 \n                 else (if 8 = 8 \n                       then 3 \n                       else 4)))\n     else 5)"
+val testPairs : string = "((fst (8,5)) + (snd (6,7)))"
+val testLet : string = "let x = 7 ;; let y = (x * 4) ;; (x + y)"
+val testLetFun : string =
+  "let four = 4 ;;\n    let five = 5 ;;\n    let add4 (x : int) = (x + four) ;;\n    let mul5 (y : int) = (y * five) ;;\n   (mul5 (add4 6))"
+val testFun : string =
+  "let twice (f : (int -> int)) = (fun x : int -> (f (f x))) ;;\n    let mult2 (x : int) = (x * 2) ;;\n     ((twice mult2) 3)"
+val testRecNat : string =
+  "let rec fac (n:int) = \n        ((if 0 < n then (n * (fac (n - 1))) else 1) : int) ;;\n     (fac 6)"
+val testTree : string =
+  "type tree = | Leaf of int | Node of (tree * tree)\n    let t = (Node ((Leaf 27), (Leaf 8))) ;;\n    (match t with\n    | Node pr -> (match (snd pr) with\n                   | Leaf x -> (x + 1)\n                   | Node x -> 27)\n    | Leaf y -> 35)"
+val testRecTree1 : string =
+  "type tree = | Leaf of int | Node of (tree * tree)\n    let rec add (t : tree) = \n       ((match t with \n          | Leaf n -> n\n          | Node t1 ->  ((add (fst t1)) + (add (snd t1)))) : int) ;;\n    let n1 = 3 ;;\n    let n2 = 5 ;;\n   (add (Node ((Node ((Leaf n1), (Leaf 9))), (Leaf n2))))"
+val testRecTree2 : string =
+  "type tree = | Leaf of int | Node of (tree * tree)\n    let rec map (ft : ((int -> int) * tree)) = \n      ((match (snd ft) with \n         | Leaf n -> (Leaf ((fst ft) n))\n         | Node t0 -> (Node ((map ((fst ft), (fst t0))), \n                          (map ((fst ft), (snd t0))))))\n        : tree) ;"... (* string length 375; truncated *)
+# run testBinOp ;;
+Type is: int
+- : string = "24"
+# run testCond ;;
+Type is: int
+- : string = "3"
+# run testPairs ;;
+Type is: int
+- : string = "15"
+# run testLet ;;
+Type is: int
+- : string = "35"
+# run testLetFun ;;
+Type is: int
+- : string = "50"
+# run testFun ;;
+Type is: int
+- : string = "12"
+# run testRecNat ;;
+Type is: int
+- : string = "720"
+# run testTree ;;
+Type is: int
+- : string = "9"
+# run testRecTree1 ;;
+Type is: int
+- : string = "17"
+# run testRecTree2 ;;
+Type is: tree
+- : string = "Node ( Leaf 3 , Leaf 5 )"
+# 

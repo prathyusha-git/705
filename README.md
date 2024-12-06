@@ -1,23 +1,16 @@
 Design :
-Project 4 is done and good.....
+Default project
 
 Next to do:
-Separate the tasks and the function to finish 
+Prepare the presentation and meet torben
 
-Additionally add something more to the final project skeleton.
+
 
 We want to add prolog basic features to the project
-
-How to assign the environment and the store to the logical variables and expression 
-
 Test:
-We can use torben examples.ml to test case...
-We can use the test cases from project5 to evaluate the logical programming paradigm.
-
-Timeline
+We can use more testcases to make sure they work...
 
 Future Work: To create a hybrid language which combines the imperative, the functional and logic programming paradigm.
-
 
 Passed Test cases:
 testBinOp
@@ -29,7 +22,6 @@ testPairs
 testTree
 testRecTree1
 testRecTree2
-
 testRecNat
 
 Unpassed Test cases:
